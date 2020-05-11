@@ -71,7 +71,7 @@ class PdfObj:
         lines = self._buffer.split(b'\n')
         try:
             for r in range(0, min(len(lines), curses.LINES)-1):
-                stdscr.addstr(r, 0, lines[r][1:curses.COLS-1])
+                stdscr.addstr(r, 0, lines[r][0:curses.COLS-1])
 
         except IndexError as e:
             print(e)
