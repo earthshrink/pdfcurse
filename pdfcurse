@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3.7
 
 import argparse
 import sys
@@ -8,12 +8,16 @@ import time
 import curses
 import threading
 
+from pikepdf import Pdf
 
-class Pdf:
+
+class PdfObj:
     """PDF file object in memory"""
 
     _fname = None
     _page = None
+    _pages = None
+
     _buffer = None
     _error = None
     _stdscr = None
@@ -38,8 +42,15 @@ class Pdf:
         pass
 
 
+    def check_file(self):
+        with Pdf.open(self._fname) as pdf:
+            self._pages = len(pdf.pages)
+        return self._pages
+
+
     def load(self, page):
         if page < 1: page = 1
+        if page > self._pages: page = self._pages
 
         cmd = ['/usr/bin/pdftotext', '-layout', '-nopgbrk',
                '-f', str(page), '-l', str(page), self._fname, '-']
@@ -82,6 +93,9 @@ class Pdf:
 
     def browse(self, stdscr):
 
+        if not self.check_file():
+            return
+
         if not self.load(1):
             return
 
@@ -102,16 +116,16 @@ class Pdf:
                 continue
 
             modified = os.path.getmtime(self._fname)
-            #self.debug("Modified {} last {}, @page {}".format(modified, self._last_checked, self._page))
             if modified > self._last_checked:
-                #self.debug("File changed, reloading")
+                if not self.check_file():
+                    return
                 self.load(self._page)
 
         pass
 
 
 def browse(stdscr, fname):
-    pdf = Pdf(fname)
+    pdf = PdfObj(fname)
     pdf.browse(stdscr)
     pass
 
