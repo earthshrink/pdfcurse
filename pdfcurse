@@ -26,9 +26,12 @@ class PdfObj:
     _gotkey = None
     _key = None
 
-    _pollsec = 1
+    _pollsec = 0.1
     _last_checked = None
+
     _scr = None
+    _start_row = 0
+    _start_col = 0
 
     def __init__(self, fname):
         self._fname = fname
@@ -74,11 +77,16 @@ class PdfObj:
 
 
     def paint(self, stdscr):
-        stdscr.clear()
         lines = self._buffer.split(b'\n')
+
+        nlines = min(len(lines) - self._start_row, curses.LINES)
+
+        stdscr.clear()
         try:
-            for r in range(0, min(len(lines), curses.LINES)-1):
-                stdscr.addstr(r, 0, lines[r][0:curses.COLS-1])
+            for r in range(0,  nlines-1):
+                row = lines[self._start_row+r]
+                ncols = min(len(row) - self._start_col, curses.COLS)
+                stdscr.addstr(r, 0, row[self._start_col:self._start_col+ncols])
 
         except IndexError as e:
             print(e)
@@ -111,15 +119,35 @@ class PdfObj:
         thread.daemon = True
         thread.start()
 
+        repaint = True
         while True:
-            self.paint(stdscr)
+            if repaint:
+                self.paint(stdscr)
+
             time.sleep(self._pollsec)
 
             if self._gotkey:
                 self._gotkey = False
+                repaint = True
+
                 if self._key == 'q': return
-                if self._key == 'f': self.load(self._page+1)
-                if self._key == 's': self.load(self._page-1)
+
+                # page navigation
+                elif self._key == 'f': self.load(self._page+1)
+                elif self._key == 's': self.load(self._page-1)
+                # todo: 'g'
+
+                # vertical panning
+                elif self._key == 'c' and self._start_row + 5 <= curses.LINES: self._start_row += 5
+                elif self._key == 'e' and self._start_row >= 5: self._start_row -= 5
+
+                # horizontal panning
+                elif self._key == 'd' and self._start_col + 5 <= curses.COLS: self._start_col += 5
+                elif self._key == 'a' and self._start_col >= 5: self._start_col -= 5
+
+                else:
+                    self.debug("No repaint")
+                    repaint = False
                 continue
 
             modified = os.path.getmtime(self._fname)
@@ -127,6 +155,7 @@ class PdfObj:
                 if not self.check_file():
                     return
                 self.load(self._page)
+                repaint = True
 
         pass
 
