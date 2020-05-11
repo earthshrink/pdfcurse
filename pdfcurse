@@ -2,9 +2,11 @@
 
 import argparse
 import sys
+import os
 import subprocess
 import time
 import curses
+import threading
 
 
 class Pdf:
@@ -17,6 +19,12 @@ class Pdf:
     _stdscr = None
     _prevpage = None
 
+    _gotkey = None
+    _key = None
+
+    _pollsec = 1
+    _last_checked = None
+    _scr = None
 
     def __init__(self, fname):
         self._fname = fname
@@ -26,22 +34,15 @@ class Pdf:
 
     def debug(self, txt):
         print(txt, file=sys.stderr)
+        sys.stderr.flush()
         pass
 
 
     def load(self, page):
-        cmd = [
-                '/usr/bin/pdftotext',
-                '-layout',
-                '-nopgbrk',
-                '-f',
-                str(page),
-                '-l',
-                str(page),
-                self._fname,
-                '-'
-                ]
-        self.debug('Running: {}'.format(str(cmd)))
+        if page < 1: page = 1
+
+        cmd = ['/usr/bin/pdftotext', '-layout', '-nopgbrk',
+               '-f', str(page), '-l', str(page), self._fname, '-']
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         page_buffer, self._error = p.communicate()
 
@@ -49,6 +50,7 @@ class Pdf:
         if success:
             self._page = page
             self._buffer = page_buffer
+            self._last_checked = time.mktime(time.localtime())
 
         return success
 
@@ -56,20 +58,54 @@ class Pdf:
     def paint(self, stdscr):
         stdscr.clear()
         lines = self._buffer.split(b'\n')
-        for r in range(0, curses.LINES-1):
-            stdscr.addstr(r, 0, lines[r][1:curses.COLS-1])
+        try:
+            for r in range(0, min(len(lines), curses.LINES)-1):
+                stdscr.addstr(r, 0, lines[r][1:curses.COLS-1])
+
+        except IndexError as e:
+            print(e)
+            print(len(lines))
+
+        stdscr.refresh()
+        pass
+
+
+    def listen(self):
+
+        while True:
+            key = self._scr.getkey()
+            self._gotkey = True
+            self._key = key
 
         pass
 
+
     def browse(self, stdscr):
 
-        self.load(1)
+        if not self.load(1):
+            return
+
+        self._scr = stdscr
+        thread = threading.Thread(target=self.listen)
+        thread.daemon = True
+        thread.start()
+
         while True:
             self.paint(stdscr)
-            key = stdscr.getkey()
-            if key == 'q': return
-            if key == 'f': self.load(self._page + 1)
-            if key == 's': self.load(self._page - 1)
+            time.sleep(self._pollsec)
+
+            if self._gotkey:
+                self._gotkey = False
+                if self._key == 'q': return
+                if self._key == 'f': self.load(self._page+1)
+                if self._key == 's': self.load(self._page-1)
+                continue
+
+            modified = os.path.getmtime(self._fname)
+            #self.debug("Modified {} last {}, @page {}".format(modified, self._last_checked, self._page))
+            if modified > self._last_checked:
+                #self.debug("File changed, reloading")
+                self.load(self._page)
 
         pass
 
