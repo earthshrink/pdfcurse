@@ -43,8 +43,15 @@ class PdfObj:
 
 
     def check_file(self):
-        with Pdf.open(self._fname) as pdf:
-            self._pages = len(pdf.pages)
+        try:
+            with Pdf.open(self._fname) as pdf:
+                page_count = len(pdf.pages)
+            self._pages = page_count
+
+        except:
+            # ignore - file likely being compiled
+            pass
+
         return self._pages
 
 
