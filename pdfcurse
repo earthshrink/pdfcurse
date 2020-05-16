@@ -16,7 +16,8 @@ class PdfObj:
 
     _fname = None
     _page = None
-    _pages = None
+    _pages = 1
+    _file_pages = None
 
     _buffer = None
     _error = None
@@ -32,6 +33,7 @@ class PdfObj:
     _scr = None
     _start_row = 0
     _start_col = 0
+    _cont = False
 
     def __init__(self, fname):
         self._fname = fname
@@ -49,28 +51,31 @@ class PdfObj:
         try:
             with Pdf.open(self._fname) as pdf:
                 page_count = len(pdf.pages)
-            self._pages = page_count
+            self._file_pages = page_count
 
         except:
             # ignore - file likely being compiled
             pass
 
-        return self._pages
+        return self._file_pages
 
 
     def load(self, page):
         if page < 1: page = 1
-        if page > self._pages: page = self._pages
 
-        cmd = ['/usr/bin/pdftotext', '-layout', '-nopgbrk',
-               '-f', str(page), '-l', str(page), self._fname, '-']
+        end_page = page + self._pages - 1
+        if end_page > self._file_pages: end_page = self._file_pages
+        if page > end_page: page = end_page
+
+        cmd = ['/usr/bin/pdftotext', '-layout', #'-nopgbrk',
+               '-f', str(page), '-l', str(end_page), self._fname, '-']
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         page_buffer, self._error = p.communicate()
 
         success = (p.returncode == 0)
         if success:
             self._page = page
-            self._buffer = page_buffer
+            self._buffer = page_buffer.replace(b'\f', b'\n\n\n\n\n')
             self._last_checked = time.mktime(time.localtime())
 
         return success
@@ -80,6 +85,11 @@ class PdfObj:
         lines = self._buffer.split(b'\n')
 
         nlines = min(len(lines) - self._start_row, curses.LINES)
+        if nlines < curses.LINES and self._cont:
+            if self._start_row > 0:
+                self.load(self._page-1)
+            else:
+                self.load(self._page)
 
         stdscr.clear()
         try:
@@ -114,6 +124,7 @@ class PdfObj:
         if not self.load(1):
             return
 
+        curses.cbreak()
         self._scr = stdscr
         thread = threading.Thread(target=self.listen)
         thread.daemon = True
@@ -134,19 +145,39 @@ class PdfObj:
 
                 # page navigation
                 elif self._key == 'f': self.load(self._page+1)
-                elif self._key == 's': self.load(self._page-1)
+                elif self._key == 'a': self.load(self._page-1)
                 # todo: 'g'
 
-                # vertical panning
-                elif self._key == 'c' and self._start_row + 5 <= curses.LINES: self._start_row += 5
-                elif self._key == 'e' and self._start_row >= 5: self._start_row -= 5
-
                 # horizontal panning
-                elif self._key == 'd' and self._start_col + 5 <= curses.COLS: self._start_col += 5
-                elif self._key == 'a' and self._start_col >= 5: self._start_col -= 5
+                elif self._key == 'e' and self._start_col + 5 <= curses.COLS: self._start_col += 5
+                elif self._key == 'w' and self._start_col >= 5: self._start_col -= 5
+
+                # vertical panning
+                elif self._key == 'v':
+                    if self._start_row + 5 <= curses.LINES:
+                        self._start_row += 5
+                    else:
+                        self.load(self._page+1)
+
+                elif self._key == 'r':
+                    if self._start_row >= 5:
+                        self._start_row -= 5
+                    else:
+                        self.load(self._page-1)
+
+                # modes
+                elif self._key == 'c' and self._pages == 1:
+                    self._pages = 2
+                    self._cont = True
+                    self.load(self._page)
+
+                elif self._key == '1' and self._pages > 1:
+                    self._pages = 1
+                    self._cont = False
+                    self.load(self._page)
 
                 else:
-                    self.debug("No repaint")
+                    #self.debug("Got key [{}]".format(self._key))
                     repaint = False
                 continue
 
