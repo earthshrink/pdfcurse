@@ -83,9 +83,11 @@ class PdfObj:
 
     def paint(self, stdscr):
         lines = self._buffer.split(b'\n')
+        [ maxrows, maxcols ] = stdscr.getmaxyx()
+        #self.debug('paint: {}x{}'.format(maxrows, maxcols))
 
-        nlines = min(len(lines) - self._start_row, curses.LINES)
-        if nlines < curses.LINES and self._cont:
+        nlines = min(len(lines) - self._start_row, maxrows)
+        if nlines < maxrows and self._cont:
             if self._start_row > 0:
                 self.load(self._page-1)
             else:
@@ -95,7 +97,7 @@ class PdfObj:
         try:
             for r in range(0,  nlines-1):
                 row = lines[self._start_row+r]
-                ncols = min(len(row) - self._start_col, curses.COLS)
+                ncols = min(len(row) - self._start_col, maxcols)
                 stdscr.addstr(r, 0, row[self._start_col:self._start_col+ncols])
 
         except IndexError as e:
@@ -140,11 +142,14 @@ class PdfObj:
             if self._gotkey:
                 self._gotkey = False
                 repaint = True
+                [ maxrows, maxcols ] = stdscr.getmaxyx()
 
                 if self._key == ord('q'): return
 
                 elif self._key == curses.KEY_RESIZE:
-                    self.debug('got resize')
+                    #res = curses.is_term_resized(maxrows, maxcols)
+                    [ maxrows, maxcols ] = stdscr.getmaxyx()
+                    #self.debug('got resize {} {} {}'.format(res, curses.LINES, curses.COLS))
                     curses.resizeterm(*stdscr.getmaxyx())
 
                 # page navigation
@@ -153,12 +158,12 @@ class PdfObj:
                 # todo: 'g'
 
                 # horizontal panning
-                elif self._key == ord('e') and self._start_col + 5 <= curses.COLS: self._start_col += 5
+                elif self._key == ord('e') and self._start_col + 5 <= maxcols: self._start_col += 5
                 elif self._key == ord('w') and self._start_col >= 5: self._start_col -= 5
 
                 # vertical panning
                 elif self._key == ord('v'):
-                    if self._start_row + 5 <= curses.LINES:
+                    if self._start_row + 5 <= maxrows:
                         self._start_row += 5
                     else:
                         self.load(self._page+1)
@@ -208,6 +213,9 @@ def prepare_args():
 
 
 def main(args):
+    # issue2675 bugs.python.org open since 2008! 
+    os.unsetenv('LINES')
+    os.unsetenv('COLUMNS')
     curses.wrapper(browse, args.file)
     pass
 
