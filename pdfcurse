@@ -24,8 +24,8 @@ class PdfObj:
     _stdscr = None
     _prevpage = None
 
-    _gotkey = None
-    _key = None
+    _gotkeys = 0
+    _keys = []
 
     _pollsec = 0.1
     _last_checked = None
@@ -112,8 +112,8 @@ class PdfObj:
 
         while True:
             key = self._scr.getch()
-            self._gotkey = True
-            self._key = key
+            self._gotkeys += 1
+            self._keys.append(key)
 
         pass
 
@@ -139,54 +139,53 @@ class PdfObj:
 
             time.sleep(self._pollsec)
 
-            if self._gotkey:
-                self._gotkey = False
+            while self._gotkeys > 0:
+                self._gotkeys -= 1
                 repaint = True
                 [ maxrows, maxcols ] = stdscr.getmaxyx()
 
-                if self._key == ord('q'): return
+                key = self._keys.pop()
+                if key == ord('q'): return
 
-                elif self._key == curses.KEY_RESIZE:
-                    #res = curses.is_term_resized(maxrows, maxcols)
+                elif key == curses.KEY_RESIZE:
                     [ maxrows, maxcols ] = stdscr.getmaxyx()
-                    #self.debug('got resize {} {} {}'.format(res, curses.LINES, curses.COLS))
                     curses.resizeterm(*stdscr.getmaxyx())
 
                 # page navigation
-                elif self._key == ord('f'): self.load(self._page+1)
-                elif self._key == ord('a'): self.load(self._page-1)
+                elif key == ord('f'): self.load(self._page+1)
+                elif key == ord('a'): self.load(self._page-1)
                 # todo: 'g'
 
                 # horizontal panning
-                elif self._key == ord('e') and self._start_col + 5 <= maxcols: self._start_col += 5
-                elif self._key == ord('w') and self._start_col >= 5: self._start_col -= 5
+                elif key == ord('e') and self._start_col + 5 <= maxcols: self._start_col += 5
+                elif key == ord('w') and self._start_col >= 5: self._start_col -= 5
 
                 # vertical panning
-                elif self._key == ord('v'):
+                elif key == ord('v'):
                     if self._start_row + 5 <= maxrows:
                         self._start_row += 5
                     else:
                         self.load(self._page+1)
 
-                elif self._key == ord('r'):
+                elif key == ord('r'):
                     if self._start_row >= 5:
                         self._start_row -= 5
                     else:
                         self.load(self._page-1)
 
                 # modes
-                elif self._key == ord('c') and self._pages == 1:
+                elif key == ord('c') and self._pages == 1:
                     self._pages = 2
                     self._cont = True
                     self.load(self._page)
 
-                elif self._key == ord('1') and self._pages > 1:
+                elif key == ord('1') and self._pages > 1:
                     self._pages = 1
                     self._cont = False
                     self.load(self._page)
 
                 else:
-                    #self.debug("Got key [{}]".format(self._key))
+                    #self.debug("Got key [{}]".format(key))
                     repaint = False
                 continue
 
