@@ -152,8 +152,14 @@ class PdfObj:
                     curses.resizeterm(*stdscr.getmaxyx())
 
                 # page navigation
-                elif key == ord('f'): self.load(self._page+1)
-                elif key == ord('a'): self.load(self._page-1)
+                elif key == ord('f'):
+                    self.load(self._page+1)
+                    self._start_row = 0
+
+                elif key == ord('a'):
+                    self.load(self._page-1)
+                    self._start_row = 0
+
                 # todo: 'g'
 
                 # horizontal panning
@@ -162,16 +168,18 @@ class PdfObj:
 
                 # vertical panning
                 elif key == ord('v'):
-                    if self._start_row + 5 <= maxrows:
-                        self._start_row += 5
-                    else:
+                    if self._cont:
                         self.load(self._page+1)
+                        self._start_row = (self._start_row + 5) % maxrows
+                    elif self._start_row + 5 <= maxrows:
+                        self._start_row += 5
 
                 elif key == ord('r'):
-                    if self._start_row >= 5:
-                        self._start_row -= 5
-                    else:
+                    if self._cont:
                         self.load(self._page-1)
+                        self._start_row = (self._start_row - 5) % maxrows
+                    elif self._start_row >= 5:
+                        self._start_row -= 5
 
                 # modes
                 elif key == ord('c') and self._pages == 1:
