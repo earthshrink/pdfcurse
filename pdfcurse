@@ -6,7 +6,6 @@ import os
 import subprocess
 import time
 import curses
-import threading
 
 from pikepdf import Pdf
 
@@ -23,9 +22,6 @@ class PdfObj:
     _error = None
     _stdscr = None
     _prevpage = None
-
-    _gotkeys = 0
-    _keys = []
 
     _pollsec = 0.1
     _last_checked = None
@@ -108,16 +104,6 @@ class PdfObj:
         pass
 
 
-    def listen(self):
-
-        while True:
-            key = self._scr.getch()
-            self._gotkeys += 1
-            self._keys.append(key)
-
-        pass
-
-
     def browse(self, stdscr):
 
         if not self.check_file():
@@ -128,81 +114,79 @@ class PdfObj:
 
         curses.cbreak()
         self._scr = stdscr
-        thread = threading.Thread(target=self.listen)
-        thread.daemon = True
-        thread.start()
 
         repaint = True
         while True:
+
             if repaint:
                 self.paint(stdscr)
+                repaint = False
 
-            time.sleep(self._pollsec)
+            self._scr.timeout(int(self._pollsec*1000))
+            key = self._scr.getch()
 
-            while self._gotkeys > 0:
-                self._gotkeys -= 1
-                repaint = True
-                [ maxrows, maxcols ] = stdscr.getmaxyx()
-
-                key = self._keys.pop()
-                if key == ord('q'): return
-
-                elif key == curses.KEY_RESIZE:
-                    [ maxrows, maxcols ] = stdscr.getmaxyx()
-                    curses.resizeterm(*stdscr.getmaxyx())
-
-                # page navigation
-                elif key == ord('f'):
-                    self.load(self._page+1)
-                    self._start_row = 0
-
-                elif key == ord('a'):
-                    self.load(self._page-1)
-                    self._start_row = 0
-
-                # todo: 'g'
-
-                # horizontal panning
-                elif key == ord('e') and self._start_col + 5 <= maxcols: self._start_col += 5
-                elif key == ord('w') and self._start_col >= 5: self._start_col -= 5
-
-                # vertical panning
-                elif key == ord('v'):
-                    if self._cont:
-                        self.load(self._page+1)
-                        self._start_row = (self._start_row + 5) % maxrows
-                    elif self._start_row + 5 <= maxrows:
-                        self._start_row += 5
-
-                elif key == ord('r'):
-                    if self._cont:
-                        self.load(self._page-1)
-                        self._start_row = (self._start_row - 5) % maxrows
-                    elif self._start_row >= 5:
-                        self._start_row -= 5
-
-                # modes
-                elif key == ord('c') and self._pages == 1:
-                    self._pages = 2
-                    self._cont = True
+            if key == -1:
+                modified = os.path.getmtime(self._fname)
+                if modified > self._last_checked:
+                    if not self.check_file():
+                        return
                     self.load(self._page)
-
-                elif key == ord('1') and self._pages > 1:
-                    self._pages = 1
-                    self._cont = False
-                    self.load(self._page)
-
-                else:
-                    #self.debug("Got key [{}]".format(key))
-                    repaint = False
+                    repaint = True
                 continue
 
-            modified = os.path.getmtime(self._fname)
-            if modified > self._last_checked:
-                if not self.check_file():
-                    return
+            repaint = True
+            [ maxrows, maxcols ] = stdscr.getmaxyx()
+
+            if key == ord('q'): return
+
+            elif key == curses.KEY_RESIZE:
+                if curses.is_term_resized(maxrows, maxcols):
+                    curses.resizeterm(*stdscr.getmaxyx())
+
+            # page navigation
+            elif key == ord('f'):
+                self.load(self._page+1)
+                self._start_row = 0
+
+            elif key == ord('a'):
+                self.load(self._page-1)
+                self._start_row = 0
+
+            # todo: 'g'
+
+            # horizontal panning
+            elif key == ord('e') and self._start_col + 5 <= maxcols: self._start_col += 5
+            elif key == ord('w') and self._start_col >= 5: self._start_col -= 5
+
+            # vertical panning
+            elif key == ord('v'):
+                if self._cont:
+                    self.load(self._page+1)
+                    self._start_row = (self._start_row + 5) % maxrows
+                elif self._start_row + 5 <= maxrows:
+                    self._start_row += 5
+
+            elif key == ord('r'):
+                if self._cont:
+                    self.load(self._page-1)
+                    self._start_row = (self._start_row - 5) % maxrows
+                elif self._start_row >= 5:
+                    self._start_row -= 5
+
+            # modes
+            elif key == ord('c') and self._pages == 1:
+                self._pages = 2
+                self._cont = True
                 self.load(self._page)
-                repaint = True
+
+            elif key == ord('1') and self._pages > 1:
+                self._pages = 1
+                self._cont = False
+                self.load(self._page)
+
+            else:
+                #self.debug("Got key [{}]".format(key))
+                repaint = False
 
         pass
 
