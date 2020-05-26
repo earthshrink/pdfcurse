@@ -7,6 +7,7 @@ import subprocess
 import time
 import curses
 
+from curses import textpad
 from pikepdf import Pdf
 
 
@@ -104,6 +105,30 @@ class PdfObj:
         pass
 
 
+    def goto_page(self):
+        ncols, nlines = 8, 1
+        uly, ulx = 2, 2
+
+        #self._scr.addstr(uly-2, ulx-1, "Enter page# and Ctrl-G to jump")
+        win = curses.newwin(nlines, ncols, uly, ulx)
+        textpad.rectangle(self._scr, uly-1, ulx-1, uly + nlines, ulx + ncols)
+        self._scr.refresh()
+
+        box = textpad.Textbox(win, True)
+        page_number = box.edit().strip()
+
+        if page_number.isnumeric():
+            self.load(int(page_number))
+
+        elif page_number[0] == '+' and page_number[1:].isnumeric():
+            self.load(self._page + int(page_number[1:]))
+
+        elif page_number[0] == '-' and page_number[1:].isnumeric():
+            self.load(self._page - int(page_number[1:]))
+
+        pass
+
+
     def browse(self, stdscr):
 
         if not self.check_file():
@@ -152,7 +177,9 @@ class PdfObj:
                 self.load(self._page-1)
                 self._start_row = 0
 
-            # todo: 'g'
+            # ubiquitous goto
+            elif key == ord('g'):
+                    self.goto_page()
 
             # horizontal panning
             elif key == ord('e') and self._start_col + 5 <= maxcols: self._start_col += 5
