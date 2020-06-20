@@ -200,6 +200,20 @@ class PdfObj:
                 elif self._start_row >= 5:
                     self._start_row -= 5
 
+            elif key == ord('j'):
+                if self._cont:
+                    self.load(self._page+1)
+                    self._start_row = (self._start_row + 1) % maxrows
+                elif self._start_row + 1 <= maxrows:
+                    self._start_row += 1
+
+            elif key == ord('k'):
+                if self._cont:
+                    self.load(self._page-1)
+                    self._start_row = (self._start_row - 1) % maxrows
+                elif self._start_row >= 1:
+                    self._start_row -= 1
+
             # modes
             elif key == ord('c') and self._pages == 1:
                 self._pages = 2
