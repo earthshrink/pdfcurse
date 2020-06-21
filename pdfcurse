@@ -6,6 +6,7 @@ import os
 import subprocess
 import time
 import curses
+import re
 
 from curses import textpad
 from pikepdf import Pdf
@@ -134,6 +135,38 @@ class PdfObj:
         pass
 
 
+    def search(self, backward):
+        ncols, nlines = 50, 1
+        uly, ulx = 2, 2
+
+        #self._scr.addstr(uly-2, ulx-1, "Enter string and Ctrl-G to search")
+        win = curses.newwin(nlines, ncols, uly, ulx)
+        textpad.rectangle(self._scr, uly-1, ulx-1, uly + nlines, ulx + ncols)
+        self._scr.refresh()
+
+        box = textpad.Textbox(win, True)
+        search_string = box.edit().strip().encode('utf-8')
+
+        # find page
+        while not re.search(search_string, self._buffer):
+            if (backward and self._page == 1) or self._page == self._file_pages:
+                return
+            if backward:
+                self.load(self._page-1)
+            else:
+                self.load(self._page+1)
+            if not self._new_page:
+                return
+
+        # find row
+        lines = self._buffer.split(b'\n')
+        for r in range(0,  len(lines)-1):
+            if re.search(search_string, lines[r]):
+                self._start_row = r
+
+        pass
+
+
     def browse(self, stdscr):
 
         if not self.check_file():
@@ -185,6 +218,12 @@ class PdfObj:
             # ubiquitous goto
             elif key == ord('g'):
                     self.goto_page()
+
+            # search
+            elif key == ord('/'):
+                    self.search(False)
+            elif key == ord('?'):
+                    self.search(True)
 
             # horizontal panning
             elif key == ord('e') and self._start_col + 5 <= maxcols: self._start_col += 5
