@@ -35,6 +35,7 @@ class PdfObj:
 
     _debug = False
     _search = None
+    _re_search = None
 
     def __init__(self, fname):
         self._fname = fname
@@ -143,7 +144,7 @@ class PdfObj:
             lines = self._buffer.split(b'\n')
             for r in range(self._last_find+1,  len(lines)-1):
                 self.debug("? {}".format(lines[r]))
-                if re.search(self._search, lines[r]):
+                if self._re_search.search(lines[r]):
                     self._last_find = self._start_row = r
                     self.debug("found!")
                     return True
@@ -170,11 +171,16 @@ class PdfObj:
 
         if search_string == '.':
             self._search = None
+            self._re_search = None
             return
 
         if len(search_string) > 0:
             self._search = search_string.encode('utf-8')
+            self._re_search = re.compile(self._search)
             self._last_find = -1
+
+        if not self._re_search:
+            return
 
         if self.search_inpage():
             return
@@ -192,7 +198,7 @@ class PdfObj:
                 return
 
             try:
-                if re.search(self._search, self._buffer):
+                if self._re_search.search(self._buffer):
                     if self.search_inpage():
                         return
 
