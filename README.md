@@ -27,7 +27,7 @@ One thing I did do differently,
 just to think outside the Vim box,
 is to use left hand keys in the QWERTY layout,
 mainly because 35 years of Vi and Vim editing,
-and the mouse, and driving,
+and the mouse, 15 years of driving on commute,
 and the 700+ techniques of
 [kenpo](https://en.wikipedia.org/wiki/American_Kenpo)
 and almost all the weapon forms in
@@ -56,7 +56,11 @@ And use:
 | g | go to | pops a text box for page number and takes you there (programmer's fantasy!) |
 | e | east | pan to the right |
 | w | west | pan to the left |
-| v | vertical (down) | pan down by 5 lines |
-| r | reverse vertical (up) | pan up by 5 lines |
-| c | continuous mode (toggle) | self-explanatory |
+| j | vertical (down) | pan/scroll down 1 line |
+| k | reverse vertical (up) | pan/scroll up 1 line |
+| v | vertical (down) | pan/scroll down by 5 lines |
+| r | reverse vertical (up) | pan/scroll up by 5 lines |
+| c | continuous mode (toggle) | if set, scroll up/down, else pan |
+| / | forward search | reuses previous search string if empty - reset by '.' |
+| ? | reverse search | reuses previous search string if empty - reset by '.' |
 
