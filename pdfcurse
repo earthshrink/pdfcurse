@@ -80,14 +80,14 @@ class PdfObj:
         if success:
             self._new_page = self._page != page
             self._page = page
-            self._buffer = page_buffer.replace(b'\f', b'\n\n\n\n\n')
+            self._buffer = page_buffer.replace(b'\f', b'\n\n\n\n\n').decode()
             self._last_checked = time.mktime(time.localtime())
 
         return success
 
 
     def paint(self, stdscr):
-        lines = self._buffer.split(b'\n')
+        lines = self._buffer.split('\n')
         [ maxrows, maxcols ] = stdscr.getmaxyx()
 
         nlines = min(len(lines) - self._start_row, maxrows)
@@ -108,7 +108,7 @@ class PdfObj:
                 # add highlights
                 if self._re_search:
                     for m in self._re_search.finditer(row[self._start_col:self._start_col+ncols]):
-                        stdscr.chgat(r, m.start(), m.end()-m.start(), curses.A_REVERSE)
+                        stdscr.chgat(r, m.start(), m.end()-m.start(), curses.A_STANDOUT)
 
         except IndexError as e:
             print(e)
@@ -146,7 +146,7 @@ class PdfObj:
 
         self.debug("Searching page {} for [{}] from {}".format(self._page, self._search, self._last_find))
         try:
-            lines = self._buffer.split(b'\n')
+            lines = self._buffer.split('\n')
             for r in range(self._last_find+1,  len(lines)-1):
                 self.debug("? {}".format(lines[r]))
                 if self._re_search.search(lines[r]):
@@ -180,7 +180,7 @@ class PdfObj:
             return
 
         if len(search_string) > 0:
-            self._search = search_string.encode('utf-8')
+            self._search = search_string
             self._re_search = re.compile(self._search)
             self._last_find = -1
 
