@@ -105,6 +105,11 @@ class PdfObj:
                 ncols = min(len(row) - self._start_col, maxcols)
                 stdscr.addstr(r, 0, row[self._start_col:self._start_col+ncols])
 
+                # add highlights
+                if self._re_search:
+                    for m in self._re_search.finditer(row[self._start_col:self._start_col+ncols]):
+                        stdscr.chgat(r, m.start(), m.end()-m.start(), curses.A_REVERSE)
+
         except IndexError as e:
             print(e)
             print(len(lines))
