@@ -73,7 +73,9 @@ class PdfObj:
         page_buffer, self._error = p.communicate()
 
         success = (p.returncode == 0)
+        self._new_page = False
         if success:
+            self._new_page = self._page != page
             self._page = page
             self._buffer = page_buffer.replace(b'\f', b'\n\n\n\n\n')
             self._last_checked = time.mktime(time.localtime())
@@ -84,10 +86,10 @@ class PdfObj:
     def paint(self, stdscr):
         lines = self._buffer.split(b'\n')
         [ maxrows, maxcols ] = stdscr.getmaxyx()
-        #self.debug('paint: {}x{}'.format(maxrows, maxcols))
 
         nlines = min(len(lines) - self._start_row, maxrows)
-        if nlines < maxrows and self._cont:
+        self.debug('paint: {}x{} page {} start {} nlines {}'.format(maxrows, maxcols, self._page, self._start_row, nlines))
+        if nlines < maxrows and self._cont and self._page < self._file_pages:
             if self._start_row > 0:
                 self.load(self._page-1)
             else:
@@ -190,31 +192,35 @@ class PdfObj:
 
             # vertical panning
             elif key == ord('v'):
-                if self._cont:
+                if self._start_row >= maxrows-5:
                     self.load(self._page+1)
-                    self._start_row = (self._start_row + 5) % maxrows
-                elif self._start_row + 5 <= maxrows:
+                    if self._new_page:
+                        self._start_row = 0
+                else:
                     self._start_row += 5
 
             elif key == ord('r'):
-                if self._cont:
+                if self._start_row < 5:
                     self.load(self._page-1)
-                    self._start_row = (self._start_row - 5) % maxrows
-                elif self._start_row >= 5:
+                    if self._new_page:
+                        self._start_row = maxrows-5
+                else:
                     self._start_row -= 5
 
             elif key == ord('j'):
-                if self._cont:
+                if self._start_row == maxrows-1:
                     self.load(self._page+1)
-                    self._start_row = (self._start_row + 1) % maxrows
-                elif self._start_row + 1 <= maxrows:
+                    if self._new_page:
+                        self._start_row = 0
+                else:
                     self._start_row += 1
 
             elif key == ord('k'):
-                if self._cont:
+                if self._start_row == 0:
                     self.load(self._page-1)
-                    self._start_row = (self._start_row - 1) % maxrows
-                elif self._start_row >= 1:
+                    if self._new_page:
+                        self._start_row = maxrows-1
+                else:
                     self._start_row -= 1
 
             # modes
