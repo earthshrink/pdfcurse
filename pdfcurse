@@ -32,6 +32,8 @@ class PdfObj:
     _start_col = 0
     _cont = False
 
+    _debug = False
+
     def __init__(self, fname):
         self._fname = fname
         self._page = 1
@@ -39,8 +41,9 @@ class PdfObj:
 
 
     def debug(self, txt):
-        print(txt, file=sys.stderr)
-        sys.stderr.flush()
+        if self._debug:
+            print(txt, file=sys.stderr)
+            sys.stderr.flush()
         pass
 
 
@@ -225,8 +228,13 @@ class PdfObj:
                 self._cont = False
                 self.load(self._page)
 
+            # debug
+            elif key == ord('d'):
+                self._debug = not self._debug
+                self.debug('-----------')
+
             else:
-                #self.debug("Got key [{}]".format(key))
+                self.debug("Got key [{}]".format(key))
                 repaint = False
 
         pass
